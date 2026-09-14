@@ -3510,7 +3510,11 @@ describe("SessionRunnerLLM", () => {
     ])
 
     yield* replaySessionProjection(sessionID)
-    expect(yield* s.context).toMatchObject([
+    const context1 = yield* s.context
+    const firstAssistant1 = requireAssistant(context1)
+    const reasoning1 = firstAssistant1.content.find((item) => item.type === "reasoning")
+    expect(reasoning1?.state).toBeUndefined()
+    expect(context1).toMatchObject([
       Expected.user("Think first"),
       Expected.assistant({}, [
         {
@@ -3577,7 +3581,11 @@ describe("SessionRunnerLLM", () => {
     })
 
     yield* replaySessionProjection(sessionID)
-    expect(yield* s.context).toMatchObject([
+    const context2 = yield* s.context
+    const firstAssistant2 = requireAssistant(context2)
+    const reasoning2 = firstAssistant2.content.find((item) => item.type === "reasoning")
+    expect(reasoning2?.state).toBeUndefined()
+    expect(context2).toMatchObject([
       Expected.user("Echo this"),
       Expected.assistant({ finish: "tool-calls" }, [
         {

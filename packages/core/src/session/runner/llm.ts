@@ -33,21 +33,28 @@ import { MAX_STEPS_PROMPT } from "./max-steps.js"
 const CONTINUE_AFTER_INCOMPLETE_STREAM =
   "The previous response was interrupted. Continue from where you left off without repeating completed content."
 
-const encodeMessage = Schema.encodeSync(SessionMessage.Info)
+const encodeAssistantContent = Schema.encodeSync(Schema.Array(SessionMessage.AssistantContent))
 
-const sanitizeReasoning = (messages: readonly SessionMessage.Info[]) => {
+const sanitizeReasoning = (messages: readonly SessionMessage.Info[]): SessionMessage.Assistant[] => {
+  const modified: SessionMessage.Assistant[] = []
   for (const message of messages) {
     if (message.type !== "assistant") continue
+    let changed = false
     for (const item of message.content) {
       if (item.type === "reasoning" && item.state) {
-        const state = { ...item.state } as Record<string, unknown>
-        delete state.reasoningEncryptedContent
-        delete state.itemId
-        ;(item as { state?: Record<string, unknown> }).state =
-          Object.keys(state).length > 0 ? state : undefined
+        if ("reasoningEncryptedContent" in item.state || "itemId" in item.state) {
+          const state = { ...item.state } as Record<string, unknown>
+          delete state.reasoningEncryptedContent
+          delete state.itemId
+          ;(item as { state?: Record<string, unknown> }).state =
+            Object.keys(state).length > 0 ? state : undefined
+          changed = true
+        }
       }
     }
+    if (changed) modified.push(message)
   }
+  return modified
 }
 
 const layer = Layer.effect(
@@ -308,19 +315,14 @@ const layer = Layer.effect(
           }),
           RecoverStaleReasoning: Effect.fnUntraced(function* () {
             recoverStaleReasoning = false
-            sanitizeReasoning(loaded.messages)
-            for (const message of loaded.messages) {
-              if (message.type !== "assistant") continue
-              const encoded = encodeMessage(message)
-              const { id, type, ...data } = encoded
-              yield* db
-                .update(SessionMessageTable)
-                .set({
-                  data,
-                })
-                .where(and(eq(SessionMessageTable.session_id, sessionID), eq(SessionMessageTable.id, message.id)))
-                .run()
-                .pipe(Effect.orDie)
+            const modified = sanitizeReasoning(loaded.messages)
+            for (const message of modified) {
+              const content = encodeAssistantContent(message.content)
+              yield* bus.publish(SessionEvent.MessageContentUpdated, {
+                sessionID,
+                messageID: message.id,
+                content,
+              })
             }
           }),
         })
