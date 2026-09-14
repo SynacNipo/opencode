@@ -2,7 +2,7 @@ export * as SessionRunnerLLM from "./llm.js"
 
 import { Message } from "@opencode/ai"
 import { and, desc, eq, sql } from "drizzle-orm"
-import { Cause, Effect, Exit, FiberMap, Layer } from "effect"
+import { Cause, Effect, Exit, FiberMap, Layer, Schema } from "effect"
 import { Database } from "../../database/database.js"
 import { Bus } from "../../bus.js"
 import { InstructionState } from "../instruction-state.js"
@@ -32,6 +32,23 @@ import { MAX_STEPS_PROMPT } from "./max-steps.js"
 
 const CONTINUE_AFTER_INCOMPLETE_STREAM =
   "The previous response was interrupted. Continue from where you left off without repeating completed content."
+
+const encodeMessage = Schema.encodeSync(SessionMessage.Info)
+
+const sanitizeReasoning = (messages: readonly SessionMessage.Info[]) => {
+  for (const message of messages) {
+    if (message.type !== "assistant") continue
+    for (const item of message.content) {
+      if (item.type === "reasoning" && item.state) {
+        const state = { ...item.state } as Record<string, unknown>
+        delete state.reasoningEncryptedContent
+        delete state.itemId
+        ;(item as { state?: Record<string, unknown> }).state =
+          Object.keys(state).length > 0 ? state : undefined
+      }
+    }
+  }
+}
 
 const layer = Layer.effect(
   Service,
@@ -203,6 +220,7 @@ const layer = Layer.effect(
       let initial: SessionContext.Loaded | undefined = first
       let recoverOverflow = true
       let recoverContinuation = true
+      let recoverStaleReasoning = true
       while (true) {
         // Reuse boundary preparation once; retries refresh context without delivering more input.
         const loaded = initial ?? (yield* prepareContext(sessionID).pipe(Effect.flatMap(context.load)))
@@ -255,6 +273,7 @@ const layer = Layer.effect(
               retry: proposed,
             }),
           recoverContinuation,
+          recoverStaleReasoning,
           recoverOverflow: Effect.suspend(() =>
             recoverOverflow && compaction.enabled()
               ? compaction
@@ -286,6 +305,23 @@ const layer = Layer.effect(
           }),
           RecoverFull: Effect.fnUntraced(function* () {
             recoverContinuation = false
+          }),
+          RecoverStaleReasoning: Effect.fnUntraced(function* () {
+            recoverStaleReasoning = false
+            sanitizeReasoning(loaded.messages)
+            for (const message of loaded.messages) {
+              if (message.type !== "assistant") continue
+              const encoded = encodeMessage(message)
+              const { id, type, ...data } = encoded
+              yield* db
+                .update(SessionMessageTable)
+                .set({
+                  data,
+                })
+                .where(and(eq(SessionMessageTable.session_id, sessionID), eq(SessionMessageTable.id, message.id)))
+                .run()
+                .pipe(Effect.orDie)
+            }
           }),
         })
         if (completed !== undefined) return completed
