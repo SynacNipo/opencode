@@ -24,11 +24,11 @@ jobs:
         run: bun install
 
       - name: Build
-        run: cd packages/opencode && bun run build --skip-embed-web-ui
+        run: cd packages/cli && bun run build --skip-web-ui
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: opencode
-          path: packages/opencode/dist/opencode-windows-x64/bin/
+          path: packages/cli/dist/cli-windows-x64/bin/
           if-no-files-found: error
