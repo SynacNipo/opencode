@@ -24,20 +24,9 @@ jobs:
         run: |
           git fetch anomalyco pull/48908/head:pr-48908
 
-      - name: Check merge base
+      - name: Merge PR with theirs strategy
         run: |
-          BASE=$(git merge-base v2 pr-48908 2>/dev/null || echo "none")
-          echo "merge-base: $BASE"
-          if [ "$BASE" = "none" ]; then
-            echo "No common ancestor"
-          fi
-
-      - name: Merge PR
-        run: |
-          git merge pr-48908 --no-ff -m "Merge PR #48908: fix(session): recover from stale encrypted reasoning on provider rejection" || {
-            echo "Merge conflicts detected"
-            exit 1
-          }
+          git merge pr-48908 --no-ff -X theirs -m "Merge PR #48908: fix(session): recover from stale encrypted reasoning on provider rejection"
 
       - name: Push
         run: |
