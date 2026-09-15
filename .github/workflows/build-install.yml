@@ -1,6 +1,11 @@
 name: Build OpenCode
 on:
-  workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or PR ref to build
+        required: false
+        default: v2
 
 jobs:
   build:
@@ -8,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v2
+          ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v1
