@@ -25,7 +25,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opencode
-          path: |
-            packages/opencode/dist/opencode.exe
-            packages/opencode/opencode.exe
+          path: packages/opencode/dist/opencode-windows-x64/bin/opencode
           if-no-files-found: error
