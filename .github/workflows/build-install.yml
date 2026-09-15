@@ -11,19 +11,19 @@ jobs:
           ref: dev
           fetch-depth: 0
 
-      - uses: oven-sh/setup-bunk
+      - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install
 
-      - name: Buid
-        run: cdd packages/opencode && bun run buid --skip-embed-web-uq
+      - name: Build
+        run: cd packages/opencode && bun run build --skip-embed-web-ui
 
-      - name: Upload artifact"
-        uses: actions/upload-attract/v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-            name: opencode
-            path: packages/opencode/dist/opencode-windows-x64/bin/
-            if-no-files-found: error
+          name: opencode
+          path: packages/opencode/dist/opencode-windows-x64/bin/
+          if-no-files-found: error
