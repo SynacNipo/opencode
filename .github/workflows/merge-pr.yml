@@ -2,6 +2,9 @@ name: Merge PR into v2
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   merge:
     runs-on: ubuntu-latest
@@ -26,20 +29,15 @@ jobs:
           BASE=$(git merge-base v2 pr-48908 2>/dev/null || echo "none")
           echo "merge-base: $BASE"
           if [ "$BASE" = "none" ]; then
-            echo "No common ancestor, checking if PR base matches"
-            git log --oneline -1 pr-48908^ 2>/dev/null || echo "no parent"
+            echo "No common ancestor"
           fi
 
       - name: Merge PR
         run: |
-          if git merge pr-48908 --no-ff -m "Merge PR #48908: fix(session): recover from stale encrypted reasoning on provider rejection"; then
-            echo "Merge successful"
-          else
-            echo "Merge had conflicts, resolving..."
-            git checkout --theirs packages/ai/src/index.ts packages/ai/src/provider-error.ts packages/ai/src/schema/errors.ts packages/ai/test/provider-error.test.ts packages/core/src/session/runner/llm.ts packages/core/src/session/runner/step.ts packages/core/test/session-runner.test.ts packages/core/test/session-step.test.ts 2>/dev/null || true
-            git add packages/ai/src/index.ts packages/ai/src/provider-error.ts packages/ai/src/schema/errors.ts packages/ai/test/provider-error.test.ts packages/core/src/session/runner/llm.ts packages/core/src/session/runner/step.ts packages/core/test/session-runner.test.ts packages/core/test/session-step.test.ts 2>/dev/null || true
-            git commit -m "Merge PR #48908: fix(session): recover from stale encrypted reasoning on provider rejection" || echo "Commit failed"
-          fi
+          git merge pr-48908 --no-ff -m "Merge PR #48908: fix(session): recover from stale encrypted reasoning on provider rejection" || {
+            echo "Merge conflicts detected"
+            exit 1
+          }
 
       - name: Push
         run: |
