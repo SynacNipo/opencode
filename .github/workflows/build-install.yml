@@ -1,10 +1,10 @@
-name: Build and Install OpenCode
+name: Build OpenCode
 on:
   workflow_dispatch
 
 jobs:
-  build-and-install:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,11 +21,11 @@ jobs:
       - name: Build
         run: cd packages/opencode && bun run build --skip-embed-web-ui
 
-      - name: Uninstall opencode (1/2)
-        run: opencode uninstall || true
-
-      - name: Uninstall opencode (2/2)
-        run: opencode uninstall || true
-
-      - name: Install from forked build
-        run: bun install
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode
+          path: |
+            packages/opencode/dist/opencode.exe
+            packages/opencode/opencode.exe
+          if-no-files-found: error
