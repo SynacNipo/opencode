@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: v2
           fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v1
