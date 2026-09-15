@@ -1,0 +1,31 @@
+name: Build and Install OpenCode
+on:
+  workflow_dispatch
+
+jobs:
+  build-and-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: cd packages/opencode && bun run build --skip-embed-web-ui
+
+      - name: Uninstall opencode (1/2)
+        run: opencode uninstall || true
+
+      - name: Uninstall opencode (2/2)
+        run: opencode uninstall || true
+
+      - name: Install from forked build
+        run: bun install
